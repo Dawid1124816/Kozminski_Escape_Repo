@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Kozminski Escape: Polowanie na ECTS</title>
+    <meta name="description" content="Dynamiczna gra zręcznościowa 2D w realiach Akademii Leona Koźmińskiego (ALK) w Warszawie. Uciekaj przed Egzaminatorem i zdobądź 30 ECTS!" />
+    <meta property="og:title" content="Kozminski Escape: Polowanie na ECTS" />
+    <meta property="og:description" content="Dynamiczna gra zręcznościowa 2D w realiach Akademii Leona Koźmińskiego (ALK) w Warszawie. Uciekaj przed Egzaminatorem i zdobądź 30 ECTS!" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
+
+    <!-- Arkusz stylów CSS -->
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div id="game-app">
+      <!-- 1. Pasek stanu (HUD) u góry -->
+      <header id="game-hud" class="hud-container">
+        <!-- Brand / Uczelnia -->
+        <div class="hud-brand">
+          <span class="hud-badge-alk">ALK</span>
+          <span class="hud-game-title">Kozminski Escape</span>
+        </div>
+
+        <!-- Licznik ECTS (cel: 30) -->
+        <div class="hud-stat hud-ects-box" title="Zdobądź 30 ECTS aby zaliczyć semestr!">
+          <div class="hud-label">Punkty ECTS</div>
+          <div class="hud-value-row">
+            <span id="ects-counter" class="hud-value hud-mono">0</span>
+            <span class="hud-target">/ 30</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="ects-progress-bar" class="progress-bar-fill ects-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Pasek staminy do sprintu -->
+        <div class="hud-stat hud-stamina-box" title="Przytrzymaj SHIFT na PC lub przycisk SPRINT na telefonie">
+          <div class="hud-label-row">
+            <span class="hud-label">Stamina (Sprint)</span>
+            <span id="stamina-percent" class="hud-percent hud-mono">100%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="stamina-progress-bar" class="progress-bar-fill stamina-fill" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <!-- Status kampusu i lokalizacja -->
+        <div class="hud-stat hud-status-box">
+          <div class="hud-label">Lokalizacja Kampusu</div>
+          <div id="campus-status" class="hud-status-text">Budynek A · Hol Główny</div>
+        </div>
+
+        <!-- Przyciski pomocnicze HUD (Dźwięk / Pauza) -->
+        <div class="hud-controls">
+          <button id="btn-sound-toggle" class="hud-btn" type="button" aria-label="Włącz/Wyłącz dźwięk" title="Wycisz lub włącz dźwięki">
+            <span id="sound-icon">🔊</span>
+          </button>
+          <button id="btn-pause-toggle" class="hud-btn" type="button" aria-label="Wstrzymaj grę" title="Wstrzymaj grę (Spacja / P)">
+            <span id="pause-icon">⏸️</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Główny obszar gry -->
+      <main class="game-viewport">
+        <!-- 2. Kontener z canvasem 800x540 i dymkiem na wypowiedzi profesora -->
+        <div id="canvas-container" class="canvas-wrapper">
+          <!-- Dymek wypowiedzi profesora -->
+          <div id="professor-speech-bubble" class="speech-bubble hidden" aria-live="polite">
+            <div class="speech-bubble-header">
+              <span class="professor-avatar">👨‍🏫</span>
+              <span class="professor-name">Prof. Egzaminator</span>
+            </div>
+            <div id="professor-speech-text" class="speech-bubble-content">
+              „Nie ma przedłużania terminu oddania projektu!”
+            </div>
+            <div class="speech-bubble-arrow"></div>
+          </div>
+
+          <!-- Canvas gry o wymiarach 800 x 540 -->
+          <canvas id="gameCanvas" width="800" height="540" aria-label="Pole gry Kozminski Escape 2D"></canvas>
+        </div>
+
+        <!-- 4. Wirtualne przyciski dotykowe (D-pad i sprint) ukryte na PC, widoczne na telefonach (#mobile-controls) -->
+        <div id="mobile-controls" class="touch-controls-container" aria-label="Wirtualne sterowanie dotykowe">
+          <!-- D-pad kierunkowy -->
+          <div class="dpad-grid" role="group" aria-label="Kierunki poruszania">
+            <div class="dpad-empty"></div>
+            <button id="btn-touch-up" class="dpad-btn dpad-up" type="button" aria-label="W górę">
+              <span>▲</span>
+            </button>
+            <div class="dpad-empty"></div>
+
+            <button id="btn-touch-left" class="dpad-btn dpad-left" type="button" aria-label="W lewo">
+              <span>◀</span>
+            </button>
+            <div class="dpad-center"></div>
+            <button id="btn-touch-right" class="dpad-btn dpad-right" type="button" aria-label="W prawo">
+              <span>▶</span>
+            </button>
+
+            <div class="dpad-empty"></div>
+            <button id="btn-touch-down" class="dpad-btn dpad-down" type="button" aria-label="W dół">
+              <span>▼</span>
+            </button>
+            <div class="dpad-empty"></div>
+          </div>
+
+          <!-- Przycisk sprintu i interakcji -->
+          <div class="touch-action-group">
+            <button id="btn-touch-sprint" class="touch-action-btn sprint-btn" type="button" aria-label="Sprint">
+              <span class="sprint-icon">⚡</span>
+              <span class="sprint-text">SPRINT</span>
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- 3. Ekrany modalne -->
+
+      <!-- Ekran Startowy z legendą -->
+      <section id="start-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="start-title">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div class="alk-insignia">Akademia Leona Koźmińskiego</div>
+            <h1 id="start-title" class="modal-title">Kozminski Escape: Polowanie na ECTS</h1>
+            <p class="modal-subtitle">Warszawa · Jagiellońska 57/59 · Sesja Zimowa/Letnia</p>
+          </div>
+
+          <div class="modal-body">
+            <div class="story-box">
+              <p>
+                <strong>Fabuła:</strong> Jesteś studentem ALK i nadszedł decydujący dzień sesji!
+                Surowy Egzaminator krąży po korytarzach Budynku A, Biblioteki oraz zielonego Patio.
+                Musisz zebrać <strong>30 punktów ECTS</strong> rozsianych po kampusie i dotrzeć do Dziekanatu,
+                nim profesor wręczy Ci protokół bez zaliczenia!
+              </p>
+            </div>
+
+            <div class="legend-grid">
+              <div class="legend-card">
+                <div class="legend-icon">🎓</div>
+                <div class="legend-text">
+                  <div class="legend-title">Indeks & ECTS (+1 do +3)</div>
+                  <div class="legend-desc">Zbieraj podręczniki i certyfikaty, aby dobić do wymaganego progu 30 ECTS.</div>
+                </div>
+              </div>
+
+              <div class="legend-card">
+                <div class="legend-icon">☕</div>
+                <div class="legend-text">
+                  <div class="legend-title">Kawa z kawiarni ALK</div>
+                  <div class="legend-desc">Błyskawicznie regeneruje pasek staminy, pozwalając na dłuższy sprint.</div>
+                </div>
+              </div>
+
+              <div class="legend-card">
+                <div class="legend-icon">🦁</div>
+                <div class="legend-text">
+                  <div class="legend-title">Statua Lwa Koźmińskiego</div>
+                  <div class="legend-desc">Symbol uczelni na Zielonym Patio. Daje chwilową aurę nietykalności!</div>
+                </div>
+              </div>
+
+              <div class="legend-card">
+                <div class="legend-icon">👨‍🏫</div>
+                <div class="legend-text">
+                  <div class="legend-title">Surowy Egzaminator</div>
+                  <div class="legend-desc">Unikaj go za wszelką cenę! Jeśli Cię dogoni – czeka Cię Kampania Wrześniowa!</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="controls-guide">
+              <div class="controls-guide-title">Sterowanie:</div>
+              <div class="controls-row">
+                <span class="control-key">W A S D</span> lub <span class="control-key">Strzałki</span> Poruszanie się
+              </div>
+              <div class="controls-row">
+                <span class="control-key">SHIFT</span> Sprint (zużywa staminę)
+              </div>
+              <div class="controls-row">
+                <span class="control-key">SPACJA / P</span> Pauza w grze
+              </div>
+              <div class="controls-row mobile-hint">
+                <span class="control-key">📱 Ekrany dotykowe</span> Użyj wirtualnego D-pada i przycisku Sprint
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button id="btn-start-game" class="btn-primary" type="button">
+              Rozpocznij ucieczkę i polowanie na ECTS
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ekran Porażki („Kampania Wrześniowa”) -->
+      <section id="gameover-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+        <div class="modal-card gameover-card">
+          <div class="modal-header">
+            <div class="modal-badge-danger">Brak zaliczenia w pierwszym terminie</div>
+            <h2 id="gameover-title" class="modal-title text-danger">Kampania Wrześniowa!</h2>
+            <p class="modal-subtitle">Profesor dopadł Cię na korytarzu z pustym arkuszem odpowiedzi...</p>
+          </div>
+
+          <div class="modal-body">
+            <div class="gameover-quote">
+              <span class="quote-mark">„</span>
+              <span id="gameover-professor-phrase">Zapraszam na egzamin komisyjny w drugim terminie! Proszę złożyć podanie do prodziekana.</span>
+              <span class="quote-mark">”</span>
+            </div>
+
+            <div class="stats-summary-grid">
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Zdobyte ECTS</span>
+                <span id="gameover-ects-value" class="stat-summary-value hud-mono">14 / 30</span>
+              </div>
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Czas ucieczki</span>
+                <span id="gameover-time-value" class="stat-summary-value hud-mono">01:42</span>
+              </div>
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Wypite kawy</span>
+                <span id="gameover-coffee-value" class="stat-summary-value hud-mono">2</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button id="btn-retry-game" class="btn-primary btn-retry" type="button">
+              Podejdź do poprawki (Zagraj ponownie)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ekran Zwycięstwa („Zaliczony Semestr”) -->
+      <section id="victory-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+        <div class="modal-card victory-card">
+          <div class="modal-header">
+            <div class="modal-badge-success">Gratulacje! Dziekanat zatwierdził oceny</div>
+            <h2 id="victory-title" class="modal-title text-success">Zaliczony Semestr!</h2>
+            <p class="modal-subtitle">Udało Ci się zebrać 30 ECTS i uciec przed sesją poprawkową!</p>
+          </div>
+
+          <div class="modal-body">
+            <div class="victory-banner">
+              <div class="victory-trophy">🏆</div>
+              <p>
+                Dotarłeś do Auli Głównej im. Leona Koźmińskiego. Twoje podanie o stypendium naukowe zostało rozpatrzone pozytywnie!
+              </p>
+            </div>
+
+            <div class="stats-summary-grid">
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Punkty ECTS</span>
+                <span id="victory-ects-value" class="stat-summary-value hud-mono">30 / 30</span>
+              </div>
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Czas ukończenia</span>
+                <span id="victory-time-value" class="stat-summary-value hud-mono">02:15</span>
+              </div>
+              <div class="stat-summary-item">
+                <span class="stat-summary-label">Ocena końcowa</span>
+                <span id="victory-grade-value" class="stat-summary-value hud-mono">5.0 (Bardzo dobry)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button id="btn-victory-restart" class="btn-primary btn-success" type="button">
+              Rozpocznij kolejny semestr (Zagraj ponownie)
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 5. Poprawne podpięcie zewnętrznych skryptów -->
+    <script src="/js/audio.js"></script>
+    <script type="module" src="/js/game.js"></script>
+  </body>
+</html>
